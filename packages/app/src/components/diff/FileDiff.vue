@@ -324,9 +324,20 @@ function mount() {
   // checkbox) above the diff body, so pierre's own file-header row would be redundant.
   // `themeType`: defaults to `'system'` (OS-level `prefers-color-scheme`) otherwise,
   // ignoring our own dark-mode toggle entirely - pin it to the app's actual state.
-  instance = virtualizer
-    ? new VirtualizedFileDiff(pierreOptions.value, virtualizer, undefined, undefined, render)
-    : new PierreFileDiff(pierreOptions.value, undefined, render)
+  if (virtualizer) {
+    // Pierre calls the owner-render callback from `rerender()` (highlighting landed, a
+    // hunk expanded, the file scrolled out). Rendering right there skips the
+    // virtualizer's frame pass, so the file renders against a stale offset and window
+    // and its lines stay blank until the next scroll. Queue it on that pass instead,
+    // as pierre does for an instance without an owner.
+    const virtualized: VirtualizedFileDiff = new VirtualizedFileDiff(pierreOptions.value, virtualizer, undefined, undefined, () => {
+      virtualizer.instanceChanged(virtualized, true)
+    })
+    instance = virtualized
+  }
+  else {
+    instance = new PierreFileDiff(pierreOptions.value, undefined, render)
+  }
 
   render()
 }
